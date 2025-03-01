@@ -6,9 +6,9 @@ import pandas as pd
 from google.cloud import storage, bigquery
 
 # GCP Configurations
-PROJECT_ID = "vanilla-steel-task-2"  # Replace with your actual GCP Project ID
+PROJECT_ID = "vanilla-steel-task-2"  # Replace with your actual GCP Project ID in my case vanilla-stell-task-2
 BUCKET_NAME = "vanila_steel_task_2"
-DATASET_ID = "vanila_steel_dataset_1"  # Updated dataset name
+DATASET_ID = "vanila_steel_dataset_1"  # dataset name on bigquery
 TABLE_ID = "recommendations"
 
 # GCS file paths
@@ -17,17 +17,17 @@ SUPPLIER_DATA1_FILE = f"gs://{BUCKET_NAME}/resources/task_3/supplier_data1.csv"
 SUPPLIER_DATA2_FILE = f"gs://{BUCKET_NAME}/resources/task_3/supplier_data2.csv"
 
 class ReadCSVFile(beam.DoFn):
-    """Reads CSV file from GCS and returns a list of dictionaries."""
+    """this Reads CSV file from GCS and returns a list of dictionaries."""
     def __init__(self, file_path):
         self.file_path = file_path
 
     def process(self, element):
         client = storage.Client()
         bucket = client.bucket(BUCKET_NAME)
-        blob = bucket.blob(self.file_path.split("/")[-1])  # Extract filename
+        blob = bucket.blob(self.file_path.split("/")[-1])  # Extracts the filename
         content = blob.download_as_text()
 
-        # Read CSV into a list of dictionaries
+        # Reads CSV into a list of dictionaries 
         reader = csv.DictReader(io.StringIO(content))
         return [row for row in reader]
 
@@ -36,15 +36,15 @@ class MatchSupplierWithBuyer(beam.DoFn):
     def process(self, element):
         buyer_data, supplier_data = element
 
-        # Convert list of dicts to DataFrame
+        # Converting list of dicts to DataFrames of bothh buyer and supplier
         buyer_df = pd.DataFrame(buyer_data)
         supplier_df = pd.DataFrame(supplier_data)
 
-        # Standardize column names
+        # Standardize column names, because anyspace or lowercase or uppercase can create problem
         buyer_df.columns = buyer_df.columns.str.lower().str.replace(" ", "_")
         supplier_df.columns = supplier_df.columns.str.lower().str.replace(" ", "_")
 
-        # Merge supplier datasets
+        # Merge supplier datasets to find recommendations
         merged_df = buyer_df.merge(supplier_df, on='material_type', how='inner')
 
         # Generate recommendation table
@@ -53,7 +53,7 @@ class MatchSupplierWithBuyer(beam.DoFn):
         return recommendations.to_dict(orient="records")
 
 class WriteToBigQuery(beam.DoFn):
-    """Writes the output data to BigQuery."""
+    """Write the output data to BigQuery ."""
     def process(self, element):
         client = bigquery.Client()
         table_ref = f"{PROJECT_ID}.{DATASET_ID}.{TABLE_ID}"
@@ -64,9 +64,9 @@ class WriteToBigQuery(beam.DoFn):
         return
 
 def run():
-    """Runs the Apache Beam pipeline."""
+    """Run the Apache Beam pipeline."""
     options = PipelineOptions(
-        runner="DataflowRunner",  # Change to 'DirectRunner' for local testing
+        runner="DataflowRunner",  
         project=PROJECT_ID,
         temp_location=f"gs://{BUCKET_NAME}/resources/task_3/temp",
         region="us-central1",
